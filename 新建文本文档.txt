@@ -1,0 +1,277 @@
+#include <SoftwareSerial.h>  
+#include<Servo.h>  
+#define LEFT "3" //左转编码
+#define RIGHT "4"//右转编码
+#define GO "1"//前进编码
+#define BACK "2"//后退编码
+#define STOP "0"//停止编码
+const int buttonPin = 14;      //状态控制开关接口
+int buttonState = 0; //开关状态初始化
+int AIN1 = 4; //Direction   
+int AIN2 = 5; //Direction   
+//int speed =100;  
+//Motor B   
+int trig=12;  
+int echo=13;  
+unsigned int S;
+int BIN1 = 3; //Direction   
+int BIN2 = 2; //Direction   
+int qyou = 9;   
+int qzuo = 8;
+int qianyou,qianzuo;
+int xia = 7;
+int xiamian;
+SoftwareSerial mySerial(10,11);
+
+void setup(){
+  
+pinMode(AIN1, OUTPUT);   
+pinMode(AIN2, OUTPUT);   
+pinMode(BIN1, OUTPUT);   
+pinMode(BIN2, OUTPUT);   
+  
+pinMode(xia,INPUT); 
+pinMode(qzuo,INPUT);  
+pinMode(qyou,INPUT); 
+pinMode(trig,OUTPUT);  
+pinMode(echo,INPUT); 
+pinMode(buttonPin, INPUT);
+mySerial.begin(9600); 
+Serial.begin(9600);  
+delay(1000);
+mySerial.println("AT+CWMODE=3");
+delay(1000);
+mySerial.println("AT+CWJAP=\"DuangDuangDuang\",\"abc54321\"");
+delay(2000);
+mySerial.println("AT+CWSAP=\"WifiCar\",\"123456123456\",1,3");
+delay(2000);
+mySerial.println("AT+CIPMUX=1");
+delay(2000);
+ mySerial.println("AT+CIPSERVER=1,8080");
+  delay(3000);
+  while(Serial.read() >= 0){}
+  while(mySerial.read() >= 0){}
+  stop();
+  Serial.println("wificar init");
+}
+void loop() {
+  buttonState = digitalRead(buttonPin);
+  if (buttonState == HIGH) {
+        char buf[100];
+    int leng = ReceiveWifiMessage(buf);
+ 
+    if(leng>0){
+      if(strcmp(buf, GO) == 0){
+//        Serial.println("go");
+         //前进
+         go();
+      }else if(strcmp(buf, BACK) == 0){
+        Serial.println("back");
+         //后退
+         back();
+      }else if(strcmp(buf, LEFT) == 0){
+         //左转
+//         Serial.println("left");
+         left();
+      }else if(strcmp(buf, RIGHT) == 0){
+        //右转
+//        Serial.println("right");
+        right();
+      }else if(strcmp(buf, STOP) == 0){
+        //停车
+//        Serial.println("stop");
+        stop();
+      }
+    }
+  }
+else {
+  range(); 
+
+       if(S<15){  
+  back();  
+       delay(800);  
+       left();  
+       delay(500);
+}
+      if(S<=25&&S>15){  
+       back();  
+       delay(800);  
+       left();  
+       delay(200);
+       Serial.println("chaoshengbo");
+       }
+        if(S>25){ 
+           
+        go(); 
+         Serial.println("chaoshengbo22222");
+        }  
+      qianyou=digitalRead(qyou);  
+        qianzuo=digitalRead(qzuo);  
+        xiamian=digitalRead(xia);  
+ if(qianzuo==LOW&&qianyou==HIGH&&xiamian==HIGH) //当左边检测到障碍物时  
+{   
+back();  
+delay(300);   
+right(); //右转  
+delay(100);   
+  Serial.println("hognwai1");
+}  
+else if(qianzuo==HIGH&&qianyou==LOW&&xiamian==HIGH) //当右边检测到障碍物时  
+{   
+back();  
+delay(300);  
+left(); //左转  
+delay(100);  
+  Serial.println("hognwai2");
+}
+else if(qianzuo==LOW&&qianyou==LOW&&xiamian==LOW) //当前方抵挡住障碍物时  
+{   
+back();
+delay(500);  
+left(); //左转  
+delay(800);  
+}
+else if(qianzuo==HIGH&&qianyou==HIGH&&xiamian==LOW) //当前方抵挡住障碍物时  
+{   
+back();  
+delay(500);  
+left(); //左转  
+delay(800);  
+  Serial.println("hognwai3");
+}
+else if(qianzuo==HIGH&&qianyou==LOW&&xiamian==LOW) //当右边检测到障碍物时  
+{   
+back();  
+delay(300);  
+left(); //左转  
+delay(300);  
+  Serial.println("hognwai4");
+}
+else if(qianzuo==LOW&&qianyou==HIGH&&xiamian==LOW) //当左边检测到障碍物时  
+{   
+back();  
+delay(300);  
+right(); //左转  
+delay(300);  
+  Serial.println("hognwai5");
+}
+}
+  
+}
+
+void go() //小车前进  
+{  
+digitalWrite(AIN1,LOW);   
+digitalWrite(AIN2,HIGH);   
+digitalWrite(BIN1,LOW);   
+digitalWrite(BIN2,HIGH);   
+}  
+
+void stop() //小车停止  
+{  
+digitalWrite(AIN1,LOW);   
+digitalWrite(AIN2,LOW);   
+digitalWrite(BIN1,LOW);   
+digitalWrite(BIN2,LOW);   
+}  
+
+void back() //小车后退  
+{  
+digitalWrite(AIN1,HIGH);   
+digitalWrite(AIN2,LOW);   
+digitalWrite(BIN1,HIGH);   
+digitalWrite(BIN2,LOW);   
+}  
+
+void right() //小车右转  
+{  
+digitalWrite(AIN1,HIGH);   
+digitalWrite(AIN2,LOW);   
+digitalWrite(BIN1,LOW);   
+digitalWrite(BIN2,HIGH);   
+}  
+
+void left() //小车左转  
+{  
+digitalWrite(AIN1,LOW);   
+digitalWrite(AIN2,HIGH);   
+digitalWrite(BIN1,HIGH);   
+digitalWrite(BIN2,LOW);   
+}
+
+void range(){ //测距函数  
+digitalWrite(trig,LOW); //测距  
+delayMicroseconds(2); //延时2微秒  
+digitalWrite(trig,HIGH);
+delayMicroseconds(20);
+digitalWrite(trig,LOW);
+int distance = pulseIn(echo,HIGH); //读取高电平时间  
+distance = distance/58; //按照公式计算  
+S = distance; //把值赋给S  
+Serial.println(S)     ; //向串口发送S的值，可以在显示器上显示距离  
+if (S<30){  
+tone(12,800,50);  
+delay(50); //延时  
+}  
+}  
+
+int ReceiveWifiMessage(char *buf){
+  //+IPD,<len>:<data>
+  //+IPD,<id>,<len>:<data>
+  String data = "";
+  if (mySerial.available()>0){
+    unsigned long start;
+    start = millis();
+    char c0 = mySerial.read();
+    if (c0 == '+')
+    {
+      while (millis()-start<100) 
+      {
+        if (mySerial.available()>0)
+        {
+          char c = mySerial.read();
+          data += c;
+        }
+        if (data.indexOf("\nOK")!=-1)
+        {
+          break;
+        }
+      }
+ 
+      int sLen = strlen(data.c_str());
+      int i,j;
+      for (i = 0; i <= sLen; i++){
+        if (data[i] == ':'){
+          break;
+        }
+      }
+      //判断是否存在id
+      boolean found = false;
+      for (j = 4; j <= i; j++){
+        if (data[j] == ','){
+          found = true;
+          break;
+        }
+      }
+      int iSize;
+      if(found ==true){
+        //+IPD,<id>,<len>:<data>
+          String _size = data.substring(j+1, i);
+          iSize = _size.toInt();
+          String str = data.substring(i+1, i+1+iSize);
+          strcpy(buf, str.c_str());     
+      }else{
+        //+IPD,<len>:<data>     
+          String _size = data.substring(4, i);
+          iSize = _size.toInt();
+          String str = data.substring(i+1, i+1+iSize);
+          strcpy(buf, str.c_str());
+      }
+      return iSize;
+    }else{
+      while(mySerial.read() >= 0){}  
+    }
+  }
+  return 0;
+} 
+  
